@@ -1,0 +1,10 @@
+[package]
+name = "nbdserve"
+version = "0.1.0"
+authors = ["Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>"]
+description = "Simple network block device server"
+
+[dependencies]
+nbd = "0.1.2"
+bufstream="0.1"
+structopt = {version="0.2.10", default-features=false }
