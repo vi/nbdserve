@@ -9,6 +9,7 @@ use structopt::StructOpt;
 use std::io::{Result,Error,ErrorKind,Seek,SeekFrom};
 use std::net::{TcpListener, TcpStream};
 use std::fs::{OpenOptions,File};
+use nbd::server::{Export,handshake,transmission};
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -54,15 +55,9 @@ fn strerror(s: &'static str) -> Result<()> {
     Err(Error::new(ErrorKind::InvalidData, stderr))
 }
 
-fn handle_client(file: &mut File, size: u64, readonly: bool, stream: TcpStream) -> Result<()> {
-    use nbd::server::{Export,handshake,transmission};
+fn handle_client(file: &mut File, e : &Export, stream: TcpStream) -> Result<()> {
     let mut s = bufstream::BufStream::new(stream);
-    let e = Export {
-        size,
-        readonly,
-        ..Default::default()
-    };
-    handshake(&mut s, &e)?;
+    handshake(&mut s, e)?;
     transmission(&mut s, file)?;
     Ok(())
 }
@@ -93,6 +88,13 @@ fn main() -> Result<()> {
         x
     };
     
+    let e = Export {
+        size,
+        readonly : opt.readonly,
+        rotational: opt.rotational,
+        ..Default::default()
+    };
+    
     let hostport = format!("{}:{}", opt.host, opt.port);
     let listener = TcpListener::bind(&hostport)?;
     
@@ -104,7 +106,7 @@ fn main() -> Result<()> {
         if !opt.quiet {
             println!("A connection from {}", addr);
         }
-        match handle_client(&mut f, size, opt.readonly, stream) {
+        match handle_client(&mut f, &e, stream) {
             Ok(_) => {
                 if !opt.quiet {
                     println!("finished");

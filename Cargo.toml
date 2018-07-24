@@ -3,6 +3,11 @@ name = "nbdserve"
 version = "0.1.0"
 authors = ["Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>"]
 description = "Simple network block device server"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/vi/nbdserve"
+keywords = ["nbd", "network-block-device"]
+categories = ["network-programming"]
+readme = "README.md"
 
 [dependencies]
 nbd = "0.1.2"
