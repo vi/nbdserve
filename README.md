@@ -3,6 +3,8 @@ nbdserve
 
 Simple network block device server. Created because of usual nbd-server is tricky-ish to cross-compile. Also it typically requires config file, which is inconvenient for one-off use.
 
+There are pre-built versions for Linux, Mac, Windows and Android on [releases page](https://github.com/vi/nbdserve/releases/).
+
 IPv6 is supported, use options like `-a [::1]`.
 
 ```
