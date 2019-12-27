@@ -10,6 +10,6 @@ categories = ["network-programming"]
 readme = "README.md"
 
 [dependencies]
-nbd = "0.1.2"
+nbd = "0.2.2"
 bufstream="0.1"
 structopt = {version="0.2.10", default-features=false }
