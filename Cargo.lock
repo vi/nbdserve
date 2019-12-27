@@ -43,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "nbdserve"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bufstream 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nbd 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
