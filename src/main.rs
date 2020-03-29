@@ -1,7 +1,7 @@
+extern crate bufstream;
 extern crate nbd;
 #[macro_use]
 extern crate structopt;
-extern crate bufstream;
 
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -51,7 +51,7 @@ struct Opt {
 }
 
 fn strerror(s: &'static str) -> Result<()> {
-    let stderr: Box<::std::error::Error + Send + Sync> = s.into();
+    let stderr: Box<dyn std::error::Error + Send + Sync> = s.into();
     Err(Error::new(ErrorKind::InvalidData, stderr))
 }
 
@@ -60,6 +60,56 @@ fn handle_client(file: &mut File, e: &Export, stream: TcpStream) -> Result<()> {
     handshake(&mut s, e)?;
     transmission(&mut s, file)?;
     Ok(())
+}
+
+#[cfg(windows)]
+fn size_for_windows_device(f: &mut File) -> u64 {
+    use std::os::windows::io::AsRawHandle;
+    use std::ptr::null_mut;
+    use winapi::ctypes::c_void;
+    use winapi::shared::minwindef::DWORD;
+    use winapi::um::winioctl::{GET_LENGTH_INFORMATION, IOCTL_DISK_GET_LENGTH_INFO};
+    let mut p_length: GET_LENGTH_INFORMATION = Default::default();
+    let fh = f.as_raw_handle();
+    let dwpl_size: DWORD = std::mem::size_of::<GET_LENGTH_INFORMATION>() as DWORD;
+    let mut dwpl_bytes_return: DWORD = 0;
+    let ret = unsafe {
+        winapi::um::ioapiset::DeviceIoControl(
+            fh as *mut c_void,
+            IOCTL_DISK_GET_LENGTH_INFO,
+            null_mut(),
+            0,
+            &mut p_length as *mut GET_LENGTH_INFORMATION as *mut c_void,
+            dwpl_size,
+            &mut dwpl_bytes_return as *mut DWORD,
+            null_mut(),
+        )
+    };
+    if ret == 0 {
+        0
+    } else {
+        let size = unsafe { *p_length.Length.QuadPart() };
+        size as u64
+    }
+}
+
+#[cfg(not(windows))]
+fn size_for_windows_device(f: &mut File) -> u64 {
+    0
+}
+
+fn get_size(f: &mut File) -> u64 {
+    if let Ok(x) = f.seek(SeekFrom::End(0)) {
+        if x != 0 {
+            return x;
+        }
+    }
+
+    if let Ok(metadata) = f.metadata() {
+        return metadata.len();
+    }
+
+    size_for_windows_device(f)
 }
 
 fn main() -> Result<()> {
@@ -81,14 +131,15 @@ fn main() -> Result<()> {
     let size = if let Some(s) = opt.size {
         s
     } else {
-        let x = f.seek(SeekFrom::End(0))?;
-        if x == 0 {
-            eprintln!(
-                "warning: Use --size option to set size of the device. Serving zero-sized nbd now."
-            );
-        }
-        x
+        get_size(&mut f)
     };
+
+    if size == 0 {
+        eprintln!(
+            "warning: Use --size option to set size of the device. Serving zero-sized nbd now."
+        );
+    }
+    println!("size of disk {}", size);
 
     let e = Export {
         size,

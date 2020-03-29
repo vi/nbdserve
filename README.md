@@ -32,3 +32,21 @@ OPTIONS:
 ARGS:
     <file>    File or device to be served
 ```
+
+# Windows
+On windows, you can use with physical drives like so:
+
+List physical drives:
+```
+wmic diskdrive list brief
+```
+
+Build and run (note that physical drives seem to only work in read only mode):
+```
+wmic diskdrive list brief
+cargo build --release
+.\target\release\nbdserve.exe --addr 0.0.0.0 \\.\PHYSICALDRIVE0 --read-only
+```
+
+You can use the [firewall-rule.ps1](firewall-rule.ps1) script to add the needed firewall rules to
+the windows firewall.
