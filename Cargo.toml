@@ -11,7 +11,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-nbd = "0.2.2"
+nbd = "0.3.1"
 bufstream="0.1"
 structopt = {version="0.2.10", default-features=false }
 

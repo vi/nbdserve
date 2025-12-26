@@ -55,10 +55,38 @@ fn strerror(s: &'static str) -> Result<()> {
     Err(Error::new(ErrorKind::InvalidData, stderr))
 }
 
-fn handle_client(file: &mut File, e: &Export, stream: TcpStream) -> Result<()> {
+fn handle_client(opt: &Opt, stream: TcpStream) -> Result<()> {
     let mut s = bufstream::BufStream::new(stream);
-    handshake(&mut s, e)?;
-    transmission(&mut s, file)?;
+    let data = handshake(&mut s, |name| {
+        // Multiple files could be served under different export names.
+        // For now, simply use the one file.
+        println!("requested export: {name}");
+
+        let mut oo = OpenOptions::new();
+        oo.read(true);
+        if !opt.readonly {
+            oo.write(true).create(true);
+        }
+        let mut f = oo.open(opt.file.clone())?;
+
+        let size = opt.size.unwrap_or_else(|| get_size(&mut f));
+        if size == 0 {
+            eprintln!(
+                "warning: Use --size option to set size of the device. Serving zero-sized nbd now."
+            );
+        }
+
+        Ok(Export {
+            size,
+            readonly: opt.readonly,
+            rotational: opt.rotational,
+            data: f,
+            resizeable: false,
+            send_trim: false,
+            send_flush: false,
+        })
+    })?;
+    transmission(&mut s, data)?;
     Ok(())
 }
 
@@ -119,35 +147,6 @@ fn main() -> Result<()> {
         strerror("This option is not supported yet")?;
     }
 
-    let mut oo = OpenOptions::new();
-    oo.read(true);
-
-    if !opt.readonly {
-        oo.write(true).create(true);
-    }
-
-    let mut f = oo.open(opt.file)?;
-
-    let size = if let Some(s) = opt.size {
-        s
-    } else {
-        get_size(&mut f)
-    };
-
-    if size == 0 {
-        eprintln!(
-            "warning: Use --size option to set size of the device. Serving zero-sized nbd now."
-        );
-    }
-    println!("size of disk {}", size);
-
-    let e = Export {
-        size,
-        readonly: opt.readonly,
-        rotational: opt.rotational,
-        ..Default::default()
-    };
-
     let hostport = format!("{}:{}", opt.host, opt.port);
     let listener = TcpListener::bind(&hostport)?;
 
@@ -159,7 +158,7 @@ fn main() -> Result<()> {
         if !opt.quiet {
             println!("A connection from {}", addr);
         }
-        match handle_client(&mut f, &e, stream) {
+        match handle_client(&opt, stream) {
             Ok(_) => {
                 if !opt.quiet {
                     println!("finished");
